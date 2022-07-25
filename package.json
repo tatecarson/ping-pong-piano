@@ -9,12 +9,18 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@smui/button": "^6.0.0",
+    "@smui/form-field": "^6.0.0",
+    "@smui/layout-grid": "^6.0.0",
+    "@smui/slider": "^6.0.0",
     "@sveltejs/vite-plugin-svelte": "^1.0.1",
     "p5": "^1.4.2",
     "svelte": "^3.49.0",
     "vite": "^3.0.0"
   },
   "dependencies": {
+    "filters": "^1.0.6",
+    "kinetics": "^0.1.4",
     "p5-svelte": "^3.1.2"
   }
 }
