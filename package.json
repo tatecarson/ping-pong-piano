@@ -21,6 +21,8 @@
   "dependencies": {
     "filters": "^1.0.6",
     "kinetics": "^0.1.4",
-    "p5-svelte": "^3.1.2"
+    "p5-svelte": "^3.1.2",
+    "svelte-frappe-charts": "^1.9.2",
+    "vconsole": "^3.14.6"
   }
 }

@@ -5,13 +5,30 @@
   import Button from "@smui/button";
   import LayoutGrid, { Cell } from "@smui/layout-grid";
 
-  let move_threshold = 5;
-  let move_forward_threshold = 1;
+  import Chart from "svelte-frappe-charts";
+
+  import VConsole from "vconsole";
+
+  const vConsole = new VConsole();
+
+  let move_threshold = 0.064;
+  let move_forward_threshold = 0.1;
 
   let permissionGranted = false;
 
   let lastDebounceTime = 0;
-  let debounceDelay = 50;
+  let debounceDelay = 145;
+
+  let accelerationZ;
+  let accelerationY;
+
+  let steps = [];
+
+  let stepping = false;
+
+  let difference;
+
+  let averageStepSpeed;
 
   const sketch = (p5) => {
     p5.setup = () => {
@@ -54,8 +71,6 @@
         .then((response, event) => {
           if (response == "granted") {
             permissionGranted = true;
-
-            deviceData = event;
           } else {
             permissionGranted = false;
           }
@@ -68,48 +83,113 @@
     p5.draw = () => {
       if (!permissionGranted) return;
 
-      p5.background(255);
+      // console.log(DeviceMotionEvent.interval);
 
-      // TODO: debounce so it happens only once for each step
+      p5.background(255);
+      p5.fill(0);
+
+      accelerationZ = p5.accelerationZ.toFixed(2);
+      accelerationY = p5.accelerationY.toFixed(2);
+
+      // p5.text(`Forward: ${accelerationY}`, 0, 100);
+      // p5.text(`Up/Down: ${accelerationZ}`, 0, 200);
+
       // TODO: count frequency of steps
       if (
         Math.abs(p5.accelerationZ - p5.pAccelerationZ) > move_threshold &&
         Math.abs(p5.accelerationY - p5.pAccelerationY) > move_forward_threshold
       ) {
         if (Date.now() - lastDebounceTime > debounceDelay) {
-          p5.stroke("red");
+          // Get the current time of each event
+          // store the previous 10 in an array
+          // get the difference between the time of each event and average it
+          // print if the walker is going fast, medium, or slow
+
+          p5.fill("red");
+          p5.textSize(40);
           p5.text("stepped", 100, 300);
+
+          // if we detect a step add its current time to an array
+          if (stepping) {
+            steps.push(Date.now());
+
+            // if a step was detected don't allow another until debounce time is reached
+            stepping = false;
+          }
+
+          // if the array gets too long clear it
+          if (steps.length > 10) {
+            steps = [];
+          }
+
+          // console.log(`Length: ${steps.length} Steps: ${steps}`);
+          // console.log(`Diff: ${diff(steps)}`);
+
+          // get the difference between the time of each step
+          difference = diff(steps);
+
+          // if we have at least 5 steps in the array then average the time differneces to get an average speed
+          if (steps.length > 5) {
+            // console.log(average(difference));
+            averageStepSpeed = average(difference);
+
+            if (averageStepSpeed) {
+              if (averageStepSpeed < 350) {
+                console.log("moving very quickly");
+              } else if (averageStepSpeed > 350 && averageStepSpeed < 799) {
+                console.log("moving medium speed");
+              } else if (averageStepSpeed > 800) {
+                console.log("moving quickly");
+              }
+            }
+          }
         }
       } else {
         lastDebounceTime = Date.now();
+        stepping = true;
       }
+
+      // console.log(average(difference));
     };
   };
+
+  function diff(A) {
+    return A.slice(1).map(function (n, i) {
+      return n - A[i];
+    });
+  }
+  function average(arr) {
+    const sum = arr.reduce((a, b) => a + b, 0);
+    const avg = sum / arr.length || 0;
+
+    return avg;
+  }
 </script>
 
-<!-- Last Debounce: {lastDebounceTime} -->
+<!-- <Chart {data} type="line" /> -->
 
 <LayoutGrid>
   <Cell>
     <Slider
       style="flex-grow: 1;"
       bind:value={debounceDelay}
-      min={45}
-      max={100}
+      min={100}
+      max={400}
     />
 
-    Value: {debounceDelay}
+    Debounce delay: {debounceDelay}
   </Cell>
 
   <Cell>
     <Slider
       style="flex-grow: 1;"
       bind:value={move_threshold}
-      min={1}
-      max={10}
+      min={0}
+      max={0.5}
+      step={0.001}
     />
 
-    Value: {move_threshold}
+    up/down threshold: {move_threshold}
   </Cell>
 
   <Cell>
@@ -117,13 +197,15 @@
       style="flex-grow: 1;"
       bind:value={move_forward_threshold}
       min={0}
-      max={1}
+      max={0.5}
       step={0.001}
       input$aria-label="Continuous slider"
     />
 
-    Value: {move_forward_threshold}
+    Forward threshold: {move_forward_threshold}
   </Cell>
 
+  <!-- <Cell>Forward: {accelerationY}</Cell>
+  <Cell>Up/Down: {accelerationZ}</Cell> -->
   <Cell><P5 {sketch} /></Cell>
 </LayoutGrid>
