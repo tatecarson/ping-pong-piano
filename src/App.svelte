@@ -133,6 +133,7 @@
             // console.log(average(difference));
             averageStepSpeed = average(difference);
 
+            // TODO: figure out what the ranges are that make sense
             if (averageStepSpeed) {
               if (averageStepSpeed < 350) {
                 console.log("moving very quickly");
