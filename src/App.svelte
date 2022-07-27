@@ -33,7 +33,6 @@
   const sketch = (p5) => {
     p5.setup = () => {
       p5.createCanvas(p5.windowWidth, p5.windowHeight);
-      p5.background(255);
       p5.textSize(48);
 
       if (
@@ -83,31 +82,16 @@
     p5.draw = () => {
       if (!permissionGranted) return;
 
-      // console.log(DeviceMotionEvent.interval);
-
-      p5.background(255);
-      p5.fill(0);
-
       accelerationZ = p5.accelerationZ.toFixed(2);
       accelerationY = p5.accelerationY.toFixed(2);
-
-      // p5.text(`Forward: ${accelerationY}`, 0, 100);
-      // p5.text(`Up/Down: ${accelerationZ}`, 0, 200);
-
-      // TODO: count frequency of steps
       if (
         Math.abs(p5.accelerationZ - p5.pAccelerationZ) > move_threshold &&
         Math.abs(p5.accelerationY - p5.pAccelerationY) > move_forward_threshold
       ) {
         if (Date.now() - lastDebounceTime > debounceDelay) {
-          // Get the current time of each event
-          // store the previous 10 in an array
-          // get the difference between the time of each event and average it
-          // print if the walker is going fast, medium, or slow
-
           p5.fill("red");
           p5.textSize(40);
-          p5.text("stepped", 100, 300);
+          p5.text("stepping", 100, 100);
 
           // if we detect a step add its current time to an array
           if (stepping) {
@@ -115,42 +99,48 @@
 
             // if a step was detected don't allow another until debounce time is reached
             stepping = false;
-          }
 
-          // if the array gets too long clear it
-          if (steps.length > 10) {
-            steps = [];
-          }
+            // get the difference between the time of each step
+            // remove times that are too long or too short
+            difference = diff(steps).filter(
+              (value) => value > 200 && value < 5000
+            );
 
-          // console.log(`Length: ${steps.length} Steps: ${steps}`);
-          // console.log(`Diff: ${diff(steps)}`);
+            // if we have at least 5 steps in the array then average the time diff to get an average speed
 
-          // get the difference between the time of each step
-          difference = diff(steps);
+            // TODO: do some more testing to make sure it isn't picking up double triggers
+            // also figure out why it skips some steps
+            if (steps.length > 5) {
+              console.log(difference);
+              console.log(`Recent step ${difference[difference.length - 1]}`);
+              averageStepSpeed = average(difference);
 
-          // if we have at least 5 steps in the array then average the time differneces to get an average speed
-          if (steps.length > 5) {
-            // console.log(average(difference));
-            averageStepSpeed = average(difference);
-
-            // TODO: figure out what the ranges are that make sense
-            if (averageStepSpeed) {
-              if (averageStepSpeed < 350) {
-                console.log("moving very quickly");
-              } else if (averageStepSpeed > 350 && averageStepSpeed < 799) {
-                console.log("moving medium speed");
-              } else if (averageStepSpeed > 800) {
-                console.log("moving quickly");
+              // lighter colors for slower speed
+              if (averageStepSpeed) {
+                console.log(`Avg speed: ${averageStepSpeed}`);
+                if (averageStepSpeed < 750) {
+                  p5.background("#0000AD");
+                } else if (averageStepSpeed > 750 && averageStepSpeed < 1000) {
+                  p5.background("#1D9AFF");
+                } else if (averageStepSpeed > 1000) {
+                  p5.background("#33C1FF");
+                } else if (averageStepSpeed > 2000) {
+                  p5.background("#D1FFE0");
+                }
               }
             }
+          }
+
+          // make sure array is always 10 units long
+          if (steps.length > 10) {
+            steps.shift();
           }
         }
       } else {
         lastDebounceTime = Date.now();
+        p5.background(255);
         stepping = true;
       }
-
-      // console.log(average(difference));
     };
   };
 
