@@ -1,18 +1,17 @@
 <script>
   import P5 from "p5-svelte";
-
   import Slider from "@smui/slider";
   import Button from "@smui/button";
   import LayoutGrid, { Cell } from "@smui/layout-grid";
-
   import Chart from "svelte-frappe-charts";
-
-  import VConsole from "vconsole";
-
+  import * as Tone from "tone";
   import { std, mean, subtract } from "mathjs";
+  import { svelteStore, doc, awareness } from "./lib/store.js";
+  import VConsole from "vconsole";
 
   const vConsole = new VConsole();
 
+  // plotting
   let data = {
     labels: [], // x axis -  current time
     datasets: [
@@ -25,30 +24,25 @@
 
   let chartRef;
 
+  // step counting
   let move_threshold = 2;
-  let move_forward_threshold = 0.1;
-
-  // detect steps with p5 or not
-  let detectStepsp5 = false;
 
   let showButton = false;
   let permissionGranted = false;
 
-  let lastDebounceTime = 0;
-  let debounceDelay = 145;
-
-  let accelerationZ;
-  let accelerationY;
-
   let steps = [];
-
-  let stepping = false;
 
   let difference;
 
   let averageStepSpeed;
 
   let magArr = [];
+
+  // Tonejs vars
+  let start = false;
+
+  // syncstore
+  let updatedPosition;
 
   const sketch = (p5) => {
     p5.setup = () => {
@@ -66,11 +60,8 @@
         DeviceOrientationEvent.requestPermission()
           .catch(() => {
             // show permission dialog only the first time
-            // let button = p5.createButton("click to allow access to sensors");
-            // button.style("font-size", "24px");
-            // button.center();
-            // button.mousePressed(requestAccess);
 
+            // just to get the button to show up
             showButton = true;
             throw Error("try again");
           })
@@ -143,12 +134,16 @@
       p5.rect(0, y, p5.windowWidth, 20);
 
       // plotting the chart
-      let now = new Date();
-      chartRef.addDataPoint(now.getSeconds(), [magNoG[49], meanPeakHeight]);
+      if (chartRef) {
+        let now = new Date();
+        chartRef.addDataPoint(now.getSeconds(), [magNoG[49], meanPeakHeight]);
 
-      if (p5.frameCount > 20) {
-        chartRef.removeDataPoint(0);
+        if (p5.frameCount > 20) {
+          chartRef.removeDataPoint(0);
+        }
       }
+
+      // if the length of the array changes, update the transport position
     };
   };
 
@@ -156,6 +151,60 @@
     return A.slice(1).map(function (n, i) {
       return n - A[i];
     });
+  }
+
+  awareness.on("change", (changes) => {
+    // console.log(
+    //   Array.from(awareness.getStates().values())[0].transport.position
+    // );
+
+    Tone.Transport.position = Array.from(
+      awareness.getStates().values()
+    )[0].transport.position;
+  });
+
+  function onAllowAudio() {
+    Tone.context.resume();
+    Tone.Transport.start();
+
+    awareness.setLocalStateField("transport", {
+      position: Tone.Transport.position,
+    });
+    start = true;
+  }
+
+  const synth = new Tone.Synth().toDestination();
+  const seq = new Tone.Sequence(
+    (time, note) => {
+      synth.triggerAttackRelease(note, 0.1, time);
+    },
+    ["C4", ["E4", "D4", "E4"], "G4", ["A4", "G4"]]
+  );
+
+  /* @arr array you want to listen to
+   @callback function that will be called on any change inside array
+ */
+
+  function startSeq() {
+    // when a client starts add their position to an array
+    if (updatedPosition) {
+      // console.log(
+      //   Array.from(awareness.getStates().values())[0].transport.position
+      // );
+
+      awareness.setLocalStateField("transport", {
+        position: Tone.Transport.position,
+      });
+    }
+
+    seq.start();
+  }
+
+  function stopSeq() {
+    // awareness.setLocalStateField("transport", {
+    //   position: Tone.Transport.position,
+    // });
+    seq.stop();
   }
 
   function requestAccess() {
@@ -175,26 +224,25 @@
 </script>
 
 <LayoutGrid id="context">
-  {#if permissionGranted}
-    <Chart {data} type="line" bind:this={chartRef} />
+  <!-- Allow audio -->
+  {#if !start}
+    <Button on:click={onAllowAudio}>Allow Audio?</Button>
   {:else}
-    <!-- <Button on:click={requestAccess}>Allow sensors</Button> -->
+    <Button on:click={startSeq}>Play Seq</Button>
+    <Button on:click={stopSeq}>Stop Seq</Button>
+
+    <pre>{JSON.stringify($svelteStore, undefined, 2)}</pre>
+
+    <!-- {$svelteStore.transport.position} -->
+    <!-- {$svelteStore.transport.started} -->
   {/if}
 
+  <!-- Allow accelerometer -->
   {#if showButton}
     <Button on:click={requestAccess}>Allow sensors</Button>
+  {:else}
+    <!-- <Chart {data} type="line" bind:this={chartRef} /> -->
   {/if}
-
-  <!-- <Cell>
-    <Slider
-      style="flex-grow: 1;"
-      bind:value={debounceDelay}
-      min={100}
-      max={400}
-    />
-
-    Debounce delay: {debounceDelay}
-  </Cell> -->
 
   <Cell>
     <Slider
@@ -207,23 +255,6 @@
 
     up/down threshold: {move_threshold}
   </Cell>
-
-  <!-- <Cell>
-    <Slider
-      style="flex-grow: 1;"
-      bind:value={move_forward_threshold}
-      min={0}
-      max={0.5}
-      step={0.001}
-      input$aria-label="Continuous slider"
-    />
-
-    Forward threshold: {move_forward_threshold}
-  </Cell> -->
-
-  <!-- <Cell>Forward: {accelerationY}</Cell>
-  <Cell>Up/Down: {accelerationZ}</Cell> -->
-  <!-- <Cell /> -->
 </LayoutGrid>
 
 <P5 {sketch} />
