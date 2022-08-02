@@ -13,7 +13,5 @@ export const webrtcProvider = new WebrtcProvider("ping-pong", doc);
 
 export const awareness = webrtcProvider.awareness
 
-console.log(awareness)
-
 export const disconnect = () => webrtcProvider.disconnect();
 export const connect = () => webrtcProvider.connect();

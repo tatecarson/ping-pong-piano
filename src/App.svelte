@@ -142,8 +142,6 @@
           chartRef.removeDataPoint(0);
         }
       }
-
-      // if the length of the array changes, update the transport position
     };
   };
 
@@ -153,57 +151,61 @@
     });
   }
 
-  awareness.on("change", (changes) => {
-    // console.log(
-    //   Array.from(awareness.getStates().values())[0].transport.position
-    // );
-
-    Tone.Transport.position = Array.from(
-      awareness.getStates().values()
-    )[0].transport.position;
-  });
-
   function onAllowAudio() {
     Tone.context.resume();
     Tone.Transport.start();
 
-    awareness.setLocalStateField("transport", {
-      position: Tone.Transport.position,
-    });
     start = true;
   }
+
+  awareness.on("change", (changes) => {
+    // console.log(Array.from(awareness.getStates().values()));
+    // awareness.getStates().forEach((state, i) => {
+    //   console.log(`State ${i}: ${state.transport.position}`);
+    // });
+  });
 
   const synth = new Tone.Synth().toDestination();
   const seq = new Tone.Sequence(
     (time, note) => {
       synth.triggerAttackRelease(note, 0.1, time);
+
+      awareness.setLocalStateField("transport", {
+        position: Tone.Transport.position,
+        // ID: awareness.clientID,
+      });
     },
     ["C4", ["E4", "D4", "E4"], "G4", ["A4", "G4"]]
   );
 
-  /* @arr array you want to listen to
-   @callback function that will be called on any change inside array
- */
-
   function startSeq() {
     // when a client starts add their position to an array
-    if (updatedPosition) {
-      // console.log(
-      //   Array.from(awareness.getStates().values())[0].transport.position
-      // );
-
-      awareness.setLocalStateField("transport", {
-        position: Tone.Transport.position,
-      });
-    }
-
     seq.start();
+
+    awareness.getStates().forEach((state, id, index) => {
+      console.log(`State ${id}: ${state.transport.position}`);
+
+      // console.log(i == awareness.clientID);
+
+      if (id !== awareness.clientID) {
+        // console.log(Array.from(awareness.getStates().values())[0].transport);
+        // Tone.Transport.position = state.transport.position;
+      }
+    });
+    // TODO: only set if clien is not this current position
+    // if (
+    //   typeof Array.from(awareness.getStates().values())[0].transport !==
+    //     "undefined" &&
+    //   Array.from(awareness.getStates().values())[0].transport.ID !==
+    //     awareness.clientID
+    // ) {
+    //   Tone.Transport.position = Array.from(
+    //     awareness.getStates().values()
+    //   )[0].transport.position;
+    // }
   }
 
   function stopSeq() {
-    // awareness.setLocalStateField("transport", {
-    //   position: Tone.Transport.position,
-    // });
     seq.stop();
   }
 
@@ -230,11 +232,6 @@
   {:else}
     <Button on:click={startSeq}>Play Seq</Button>
     <Button on:click={stopSeq}>Stop Seq</Button>
-
-    <pre>{JSON.stringify($svelteStore, undefined, 2)}</pre>
-
-    <!-- {$svelteStore.transport.position} -->
-    <!-- {$svelteStore.transport.started} -->
   {/if}
 
   <!-- Allow accelerometer -->
